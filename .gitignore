@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints
+.venv
+venv/
+.env
+.DS_Store
+# Se regeneran en cada ejecución (quedan en el artefacto de GitHub Actions)
+src/actividades/datos/
+src/actividades/entrenamiento/
