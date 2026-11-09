@@ -1,0 +1,111 @@
+==============================================================================
+RESUMEN AUTOMÁTICO · EA3 Aprendizaje no supervisado (K-means)
+Fecha de ejecución: 2026-11-08 22:48:08 (hora de Colombia) · scikit-learn 1.9.1
+==============================================================================
+
+1. PREGUNTA DE NEGOCIO
+------------------------------------------------------------------------------
+¿Qué grandes temas aparecen en los fragmentos de informes sobre el conflicto armado colombiano, para que un centro de memoria histórica organice su archivo en colecciones temáticas y decida qué líneas pedagógicas y de atención a víctimas priorizar?
+Quién la necesita: el equipo de archivo y pedagogía de un centro de memoria histórica (o una ONG de víctimas)
+Qué decisión apoya: cómo agrupar los documentos en colecciones y a qué temas dedicar primero recursos
+
+2. DATASET
+------------------------------------------------------------------------------
+Identificador: jdavit/colombian-conflict-SQA
+Enlace: https://huggingface.co/datasets/jdavit/colombian-conflict-SQA
+Configuración: default · splits: ['train', 'test']
+DataFrame crudo: 2925 filas x 5 columnas (question, context, answer, generated_by, split_origen)
+
+3. PREPROCESAMIENTO
+------------------------------------------------------------------------------
+Validación (métrica y decisión):
+                                           validación  métrica                              decisión
+             Completitud · nulos (todas las columnas)        0           convertir a vacío y revisar
+                         Completitud · question vacía        0                         eliminar fila
+                           Completitud · answer vacía        0                         eliminar fila
+                          Completitud · context vacío       11 conservar y marcar tiene_contexto = 0
+Unicidad · filas duplicadas (question+context+answer)        0                              eliminar
+ Formato · textos con espacios dobles o en los bordes        4                   normalizar espacios
+          Dominio · valores distintos de generated_by        3                 convertir a categoría
+
+Registro de limpieza:
+                       paso  filas  cambio                                                                por qué
+               datos crudos   2925       0                                           train + test de Hugging Face
+      espacios normalizados   2925       0 los espacios extra cambian el conteo de palabras y esconden duplicados
+   con pregunta y respuesta   2925       0                  sin pregunta o sin respuesta no hay nada que aprender
+             sin duplicados   2925       0  una fila repetida en entrenamiento y prueba sería ver el examen antes
+generated_by como categoría   2925       0                     es una etiqueta (qué IA respondió), no texto libre
+
+Textos agrupados: 2883 fragmentos de informe (columna 'context') únicos y no vacíos.
+TF-IDF: max_features=5000, min_df=3, max_df=0.5, ngram_range=(1, 2), stop_words=español, sin tildes · vocabulario=5000
+SVD (LSA): n_components=100, random_state=42 · conserva 22.2% de la variación
+Normalizer (norma L2): todos los textos con la misma escala; la distancia mide diferencia de contenido.
+Sin división entrenamiento/prueba: no hay variable objetivo con la cual comparar (aprendizaje no supervisado).
+
+4. MODELO
+------------------------------------------------------------------------------
+Tipo de aprendizaje: NO SUPERVISADO (descubre grupos sin etiquetas).
+Algoritmo: KMeans(n_clusters=9, init='k-means++' (predeterminado), n_init=10, max_iter=300 (predeterminado), random_state=42)
+Variables: vector de 100 dimensiones que resume el texto de cada fragmento.
+Elección de k: se compararon k = 2…12; regla = mayor silueta con k >= 4 (menos grupos no sirven para organizar un archivo); empate (<0.005) -> el menor k.
+
+Comparación de k:
+      inercia  silueta  Davies-Bouldin  Calinski-Harabasz  grupo más pequeño
+k                                                                           
+2   2491.8898   0.0310          3.3450           111.3005                407
+3   2432.7083   0.0339          5.1088            92.0158                381
+4   2384.0265   0.0388          4.9300            82.1712                364
+5   2344.3779   0.0391          4.7067            74.8172                356
+6   2308.3268   0.0409          4.4232            69.7539                241
+7   2277.5550   0.0447          4.2678            65.3694                236
+8   2260.4665   0.0448          4.3645            59.5397                143
+9   2230.5423   0.0485          4.1765            57.5974                221
+10  2211.5168   0.0496          4.2679            54.3664                153
+11  2190.8677   0.0527          4.0741            52.0806                 64
+12  2177.4776   0.0510          4.0935            49.2256                 98
+
+5. MÉTRICAS DEL MODELO ELEGIDO
+------------------------------------------------------------------------------
+k = 9
+Silueta = 0.0485 -> grupos débiles: muchos textos están en la frontera entre dos temas
+Davies-Bouldin = 4.1765 (más bajo = grupos más compactos y separados)
+Calinski-Harabasz = 57.60 (más alto = mejor separación)
+Inercia = 2230.54 (suma de distancias al cuadrado al centro de cada grupo)
+Modelo guardado: entrenamiento/20261109_034806_954093_KMeans_k9.pkl
+
+6. PERFIL DE LOS GRUPOS
+------------------------------------------------------------------------------
+ grupo                                              nombre  textos  % del total  palabras promedio  cohesión (dist. media al centro)
+     1                         G1 · source, conflicto, paz     589         20.4               57.6                             0.937
+     8            G8 · derechos humanos, humanos, derechos     359         12.5               76.5                             0.861
+     3    G3 · estructurales, causas, causas estructurales     337         11.7               78.6                             0.779
+     7                G7 · armados, grupos, grupos armados     323         11.2               62.5                             0.875
+     4                    G4 · paramilitares, farc, grupos     310         10.8               62.1                             0.914
+     0                                G0 · ci, pdf, 365 ci     275          9.5               43.9                             0.896
+     5                                G5 · 119 ci, 119, ci     245          8.5               48.5                             0.846
+     6            G6 · sexual, violencia sexual, violencia     224          7.8               58.2                             0.827
+     2 G2 · desaparicion, familiares, desaparicion forzada     221          7.7               65.4                             0.903
+
+Palabras clave por grupo:
+  G0: ci, pdf, 365 ci, 365, 1306, 1306 ci, conflicto, 262 ci, 262, violencia
+  G1: source, conflicto, paz, victimas, violencia, conflicto armado, armado, mujeres, memoria, reparacion
+  G2: desaparicion, familiares, desaparicion forzada, forzada, testimonios, casos, victimas, familias, caso, testimonios familiares
+  G3: estructurales, causas, causas estructurales, estructurales conflicto, repeticion, social, conflicto, recomendaciones, exclusion, fortalecer
+  G4: paramilitares, farc, grupos, source, grupos paramilitares, armados, control, poblacion, fuerza, civil
+  G5: 119 ci, 119, ci, pdf, tierras, conflicto, comunidades, violencia, paz, victimas
+  G6: sexual, violencia sexual, violencia, mujeres, victimas, armados, testimonios, genero, victimas violencia, conflicto
+  G7: armados, grupos, grupos armados, amenazas, desplazamiento, forzado, ilegales, armados ilegales, desplazamiento forzado, testimonios
+  G8: derechos humanos, humanos, derechos, violaciones, violaciones derechos, conflicto, armado, forzado, conflicto armado, desplazamiento
+
+Tipo de pregunta por grupo (% de filas del grupo):
+tipo_pregunta                                        causas_y_recomendaciones  hallazgos  hechos_especificos
+grupo                                                                                                       
+G0 · ci, pdf, 365 ci                                                     18.2       15.1                66.7
+G1 · source, conflicto, paz                                              20.4       19.5                60.1
+G2 · desaparicion, familiares, desaparicion forzada                       2.7       14.9                82.4
+G3 · estructurales, causas, causas estructurales                         99.1        0.6                 0.3
+G4 · paramilitares, farc, grupos                                          0.6       26.1                73.2
+G5 · 119 ci, 119, ci                                                     17.1       18.7                64.1
+G6 · sexual, violencia sexual, violencia                                  0.0       21.4                78.6
+G7 · armados, grupos, grupos armados                                      0.3       11.1                88.5
+G8 · derechos humanos, humanos, derechos                                  7.5       61.6                30.9
