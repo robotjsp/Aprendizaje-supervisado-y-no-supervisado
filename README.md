@@ -10,7 +10,7 @@ GitHub Actions lo ejecuta con cada `push` a `main`.
 
 | Nombre | Rol |
 |---|---|
-| _[Escribe aquí tu nombre completo]_ | Desarrollo completo (grupo de una persona) |
+| _Josue Sanmartin_ | Desarrollo completo (grupo de una persona) |
 
 ## Pregunta de negocio
 
